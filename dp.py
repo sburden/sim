@@ -36,7 +36,6 @@ class DP(HDS):
     Outputs:
     dp - HDS - hybrid dynamical system
       .F - vector field   dx  = F(t,x,p) dt
-      .B - stochasticity        + B(t,x,p) dw
       .R - reset map      t,x,p = R(t,x,p)
       .E - retraction     x   = E(t,x,p,v)
       .P - parameters     p   = P(q,debug)
@@ -135,22 +134,6 @@ class DP(HDS):
 
     return np.array(dx)
 
-  def B(self,t,x,p):
-    """
-    dx = B(t,x,p)
-    """
-    m1,m2,L1,L2,b1,b2,a,om,c,g = p.q
-    if p.j == 1:
-      t1,t2,dt1,dt2 = x
-      dx = [0.,0.,0.,0.]
-    elif p.j == 2:
-      t1,dt1 = x
-      dx = [0.,0.]
-    else:
-      raise RuntimeError,"unknown discrete mode"
-
-    return np.array(dx)
-
   def R(self,t,x,p):
     """
     t,x,p = R(t,x,p)
@@ -216,14 +199,12 @@ class DP(HDS):
 
     lam = self.Lambda(t,x,p)
 
-    F = []; B = []
+    F = [];
     for tt,xx in zip(t,x):
       F += [self.F(tt,xx,p)]
-      B += [self.B(tt,xx,p)]
     Fn = np.sqrt(np.sum(np.array(F)**2,axis=1).reshape(-1,1))
-    Bn = np.sqrt(np.sum(np.array(B)**2,axis=1).reshape(-1,1))
 
-    o = np.array((t1,t2,dt1,dt2,lam,T,V,L,Fn,Bn)).T
+    o = np.array((t1,t2,dt1,dt2,lam,T,V,L,Fn)).T
 
     return o
 
@@ -254,8 +235,8 @@ class DP(HDS):
     te = np.hstack(Te)
     oe = np.vstack(Oe)
 
-    t1,t2,dt1,dt2,lam,TT,V,L,Fn,Bn = o.T
-    t1e,t2e,dt1e,dt2e,lame,TTe,Ve,Le,Fne,Bne = oe.T
+    t1,t2,dt1,dt2,lam,TT,V,L,Fn = o.T
+    t1e,t2e,dt1e,dt2e,lame,TTe,Ve,Le,Fne = oe.T
 
     Vm = V.min()
     V  = V - Vm
@@ -308,8 +289,8 @@ class DP(HDS):
         if jj == 0:
           continue
 
-        t1,t2,dt1,dt2,lam,TT,V,L,Fn,Bn = o.T
-        t1e,t2e,dt1e,dt2e,lame,TTe,Ve,Le,Fne,Bne = oe.T
+        t1,t2,dt1,dt2,lam,TT,V,L,Fn = o.T
+        t1e,t2e,dt1e,dt2e,lame,TTe,Ve,Le,Fne = oe.T
 
         H = (ax.plot(t-t[0],sc*t1,'r.',label='$\\theta_1$',alpha=al),
              ax.plot(t-t[0],sc*t2,'b.',label='$\\theta_2$',alpha=al))

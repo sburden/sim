@@ -53,7 +53,7 @@ class HDS(object):
     Hybrid dynamical system superclass
 
     Full hybrid systems must override:
-      .F, .B, .R, .E, .P, .G, .O;
+      .F, .R, .E, .P, .G, .O;
     though trivial implementations are provided.
 
     by Sam Burden, Humberto Gonzalez, Ram Vasudevan, Berkeley 2011
@@ -78,12 +78,6 @@ class HDS(object):
   def F(self,t,z,p):
     """
     dz = F(t,z,p)  vector field
-    """
-    return 0.*z
-
-  def B(self,t,z,p):
-    """
-    dz = B(t,z,p)  stochasticity
     """
     return 0.*z
 
@@ -122,7 +116,6 @@ class BB(HDS):
     Outputs:
     bb - struct - bouncing ball simulation object
       .F - vector field   dx  = F(t,x,p) dt
-      .B - stochasticity        + B(t,x,p) dw
       .R - reset map      t,x,p = R(t,x,p)
       .E - retraction     x   = E(t,x,p,v)
       .P - parameters     p   = P(g,c,s,debug)
@@ -170,18 +163,6 @@ class BB(HDS):
 
     return dz  
 
-  def B(self,t,z,p):
-    """
-    dz = B(z,p)
-    """
-
-    if p.j == 1:
-      h,dh = z
-      
-      dz = np.array([0, p.s])
-
-    return dz  
-
   def R(self,t,z,p):
     """
     z,p = R(t,z,p)
@@ -217,14 +198,12 @@ class BB(HDS):
       m = 1
       KE = 0.5*m*dh**2
       PE = m*p.g*h
-      F = []; B = []
+      F = [];
       for tt,xx in zip(t,x):
         F += [self.F(tt,xx,p)]
-        B += [self.B(tt,xx,p)]
       Fn = np.sqrt(np.sum(np.array(F)**2,axis=1).reshape(-1,1))
-      Bn = np.sqrt(np.sum(np.array(B)**2,axis=1).reshape(-1,1))
 
-      o = np.hstack((h,dh,KE,PE,Fn,Bn))
+      o = np.hstack((h,dh,KE,PE,Fn))
 
     return o
 
@@ -287,10 +266,10 @@ def Euler(t, x, p, hds, h, rx, n, debug=False, Zeno=False):
     # halve step size until trajectory doesn't jump over strip
     k = 0
     kmax = 50
-    while (g < -rx) and (k <= kmax):
-      if debug:
-        print 'RX:  jump over strip #%d' % k
-      h  = h/2
+    while np.any(g < -rx) and (k <= kmax):
+      #if debug:
+      #  print 'RX:  jump over strip #%d' % k
+      h  = h/2.
       t  = t0 + h
       dx = h*dxdt
       x  = trj.hds.E(t0, x0, p0, dx)
@@ -305,19 +284,19 @@ def Euler(t, x, p, hds, h, rx, n, debug=False, Zeno=False):
     trj.x = np.append(trj.x, [x], axis=0)
 
     if debug:
-      print '  :  j = %d  h = %0.2e  t = %0.3f  x = %s' % (j,h,t,str(x))
+      print '  :  j = %s, h = %0.2e, t = %0.3f, g = %s, x = %s' % (j,h,t,g,str(x))
 
     # if state is on strip
-    if (g < 0):
+    if np.any(g < 0):
 
       # spend time on the strip 
-      t = t + (rx + g)
+      t = t + (rx + g.min())
       trj.t = np.append(trj.t, [t], axis=1)
       # can't move state without analytical strip
       trj.x = np.append(trj.x, [x], axis=0)
 
       if debug:
-        print 'RX:  j = %d  t = %0.3f  x = %s' % (j,t,str(x))
+        print 'RX:  j = %s, t = %0.3f, g = %s, x = %s' % (j,t,g,str(x))
 
       # append trj to trjs
       trjs += [trj]
@@ -326,7 +305,7 @@ def Euler(t, x, p, hds, h, rx, n, debug=False, Zeno=False):
       if Zeno and (len(trj.t) <= 4):
 
         print '(euler)  possible Zeno @ stepsize h = %0.6f' % h0
-        print 'RX:  j = %d  t = %0.3f  x = %s' % (j,t,str(x))
+        print 'RX:  j = %s  t = %0.3f\nx = %s' % (j,t,str(x))
         return trjs
 
       # apply reset to modify trj
@@ -343,7 +322,9 @@ def Euler(t, x, p, hds, h, rx, n, debug=False, Zeno=False):
       h = h0
 
       if debug:
-        print 'RX:  j = %d  t = %0.3f  x = %s' % (j,t,str(x[0,:]))
+        j = p.j
+        g = trj.hds.G(t[0],  x[0],  p)
+        print 'RX:  j = %s, t = %0.3f, g = %s, x = %s' % (j,t,g,str(x[0,:]))
 
   trjs += [trj]
   trj = trj.copy()
@@ -1122,7 +1103,7 @@ if __name__ == "__main__":
     t = np.hstack(t)
     o = np.vstack(o)
 
-    h,dh,KE,PE,Fn,Bn = o.T
+    h,dh,KE,PE,Fn = o.T
 
     plt.figure(1)
     plt.clf()

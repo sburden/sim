@@ -16,14 +16,13 @@ import pylab as plt
 import scipy as sp
 import scipy.optimize as op
 
-from IPython.Debugger import Tracer; dbg = Tracer()
-
 np.set_printoptions(precision=4)
 
 from util import Struct
 import relax as rx
 
 euler = rx.Euler
+dbg = lambda _ : 1/0
 
 class Hop(rx.HDS):
 
@@ -33,7 +32,6 @@ class Hop(rx.HDS):
 
     hop - HDS - Vertical Hopper hybrid model
       .F - vector field   dx  = F(t,x,p) dt
-      .B - stochasticity        + B(t,x,p) dw
       .R - reset map      t,x,p = R(t,x,p)
       .E - retraction     x   = E(t,x,p,v)
       .P - parameters     p   = P(q,debug)
@@ -116,24 +114,6 @@ class Hop(rx.HDS):
 
     return np.array(dz)
 
-  def B(self,t,z,p):
-    """
-    dx = B(t,z,p)
-    """
-    m,M,k,b,l0,a,om,ph,g = p.q
-    if p.j == 1:
-      x,y,dx,dy = z.T
-      leg = self.Leg(t,z,p)
-      dz = [0.,0.,0.,0.]
-    elif p.j == 2:
-      y,dy = z.T
-      leg = self.Leg(t,z,p)
-      dz = [0.,0.]
-    else:
-      raise RuntimeError,"unknown discrete mode"
-
-    return np.array(dz)
-
   def R(self,t,z,p):
     """
     t,z,p = R(t,z,p)
@@ -195,14 +175,12 @@ class Hop(rx.HDS):
 
     leg = self.Leg(t,z,p)
 
-    F = []; B = []
+    F = [];
     for tt,zz in zip(t,z):
       F += [self.F(tt,zz,p)]
-      B += [self.B(tt,zz,p)]
     Fn = np.sqrt(np.sum(np.array(F)**2,axis=1).reshape(-1,1))
-    Bn = np.sqrt(np.sum(np.array(B)**2,axis=1).reshape(-1,1))
 
-    o = np.array((x,y,dx,dy,leg,T,V,L,Fn,Bn)).T
+    o = np.array((x,y,dx,dy,leg,T,V,L,Fn)).T
 
     return o
 
@@ -215,7 +193,7 @@ class Hop(rx.HDS):
     t = np.hstack(T)
     o = np.vstack(O)
 
-    x,y,dx,dy,leg,TT,V,L,Fn,Bn = o.T
+    x,y,dx,dy,leg,TT,V,L,Fn = o.T
 
     tp = t; yp = y; dyp = dy
     t = np.linspace(t[0],t[-1],N,endpoint=False)
@@ -261,8 +239,8 @@ class Hop(rx.HDS):
     te = np.hstack(Te)
     oe = np.vstack(Oe)
 
-    x,y,dx,dy,leg,TT,V,L,Fn,Bn = o.T
-    xe,ye,dxe,dye,lege,TTe,Ve,Le,Fne,Bne = oe.T
+    x,y,dx,dy,leg,TT,V,L,Fn = o.T
+    xe,ye,dxe,dye,lege,TTe,Ve,Le,Fne = oe.T
 
     Vm = V.min()
     V  = V - Vm
@@ -341,7 +319,7 @@ class Hop(rx.HDS):
 
     m,M,k,b,l0,a,om,ph,g = p.q
     o = self.O(np.array([t]),np.array([z]),p)
-    x,y,dx,dy,leg,TT,V,L,Fn,Bn = o.T
+    x,y,dx,dy,leg,TT,V,L,Fn = o.T
 
     fsz = (8.,6.)
     if pxh:
